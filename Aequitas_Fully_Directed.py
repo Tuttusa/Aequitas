@@ -6,11 +6,11 @@ import os
 from collections import defaultdict
 from sklearn import svm
 import os,sys
-import urllib2
-sys.path.insert(0, './fair_classification/') # the code for fair classification is in this directory
+import urllib.request  # Changed from urllib2
+sys.path.insert(0, './fair_classification/') 
 import utils as ut
 import numpy as np
-import loss_funcs as lf # loss funcs that can be optimized subject to various constraints
+import loss_funcs as lf
 import random
 import time
 import config
@@ -24,7 +24,6 @@ params = config.params
 init_prob = 0.5
 direction_probability = [init_prob] * params
 direction_probability_change_size = 0.001
-
 
 param_probability = [1.0/params] * params
 param_probability_change_size = 0.001
@@ -62,9 +61,9 @@ with open("cleaned_train", "r") as ins:
         if (i == 0):
             i += 1
             continue
-        L = map(int, line1[:-1])
+        # Convert map to list for Python 3
+        L = list(map(int, line1[:-1]))
         sens.append(L[sensitive_param - 1])
-        # L[sens_arg-1]=-1
         X.append(L)
 
         if (int(line1[-1]) == 0):
@@ -85,26 +84,24 @@ gamma = None
 model = ut.train_model(X, Y, sensitive, loss_function, 1, 0, sep_constraint, sensitive_attrs, sensitive_attrs_to_cov_thresh,
                    gamma)
 
-
 def normalise_probability():
     probability_sum = 0.0
     for prob in param_probability:
         probability_sum = probability_sum + prob
 
-    for i in range(params):
+    for i in range(params):  # Changed xrange to range
         param_probability[i] = float(param_probability[i])/float(probability_sum)
 
 class Local_Perturbation(object):
-
     def __init__(self, stepsize=1):
         self.stepsize = stepsize
 
     def __call__(self, x):
         s = self.stepsize
-        param_choice = np.random.choice(xrange(params) , p=param_probability)
+        # Changed xrange to range and wrapped in list for np.random.choice
+        param_choice = np.random.choice(range(params), p=param_probability)
         perturbation_options = [-1, 1]
 
-        # choice = np.random.choice(perturbation_options)
         direction_choice = np.random.choice(perturbation_options, p=[direction_probability[param_choice],
                                                                      (1 - direction_probability[param_choice])])
 
@@ -135,21 +132,18 @@ class Local_Perturbation(object):
 
         return x
 
-
 class Global_Discovery(object):
     def __init__(self, stepsize=1):
         self.stepsize = stepsize
 
     def __call__(self, x):
         s = self.stepsize
-        for i in xrange(params):
+        for i in range(params):  # Changed xrange to range
             random.seed(time.time())
             x[i] = random.randint(input_bounds[i][0], input_bounds[i][1])
 
         x[sensitive_param - 1] = 0
-        # print x
         return x
-
 
 def evaluate_input(inp):
     inp0 = [int(i) for i in inp]
@@ -160,9 +154,6 @@ def evaluate_input(inp):
     out0 = np.sign(np.dot(model, inp0))
     out1 = np.sign(np.dot(model, inp1))
     return abs(out0 - out1) > threshold
-    #for binary classification, we have found that the
-    #following optimization function gives better results
-    # return abs(out1 + out0) == 0
 
 def evaluate_global(inp):
     inp0 = [int(i) for i in inp]
@@ -179,11 +170,6 @@ def evaluate_global(inp):
         global_disc_inputs_list.append(inp0)
 
     return not abs(out0 - out1) > threshold
-    #for binary classification, we have found that the
-    #following optimization function gives better results
-    # return abs(out1 + out0)
-
-
 
 def evaluate_local(inp):
     inp0 = [int(i) for i in inp]
@@ -200,10 +186,6 @@ def evaluate_local(inp):
         local_disc_inputs_list.append(inp0)
 
     return not abs(out0 - out1) > threshold
-    #for binary classification, we have found that the
-    #following optimization function gives better results
-    # return abs(out1 + out0)
-
 
 initial_input = [7, 4, 26, 1, 4, 4, 0, 0, 0, 1, 5, 73, 1]
 minimizer = {"method": "L-BFGS-B"}
@@ -214,25 +196,23 @@ local_perturbation = Local_Perturbation()
 basinhopping(evaluate_global, initial_input, stepsize=1.0, take_step=global_discovery,
              minimizer_kwargs=minimizer, niter=global_iteration_limit)
 
-print "Finished Global Search"
-print "Percentage discriminatory inputs - " + str(float(len(global_disc_inputs_list) +
-                                                        len(local_disc_inputs_list)) / float(len(tot_inputs))*100)
-print ""
-print "Starting Local Search"
+print("Finished Global Search")
+print("Percentage discriminatory inputs - " + str(float(len(global_disc_inputs_list) +
+                                                        len(local_disc_inputs_list)) / float(len(tot_inputs))*100))
+print("")
+print("Starting Local Search")
 
 for inp in global_disc_inputs_list:
     basinhopping(evaluate_local, inp, stepsize=1.0, take_step=local_perturbation, minimizer_kwargs=minimizer,
                  niter=local_iteration_limit)
-    print "Percentage discriminatory inputs - " + str(float(len(global_disc_inputs_list) +
-                                                            len(local_disc_inputs_list)) / float(len(tot_inputs))*100)
+    print("Percentage discriminatory inputs - " + str(float(len(global_disc_inputs_list) +
+                                                            len(local_disc_inputs_list)) / float(len(tot_inputs))*100))
 
-print ""
-print "Local Search Finished"
-print "Percentage discriminatory inputs - " + str(float(len(global_disc_inputs_list) +
-                                                        len(local_disc_inputs_list)) / float(len(tot_inputs))*100)
+print("")
+print("Local Search Finished")
+print("Percentage discriminatory inputs - " + str(float(len(global_disc_inputs_list) +
+                                                        len(local_disc_inputs_list)) / float(len(tot_inputs))*100))
 
-print ""
-print "Total Inputs are " + str(len(tot_inputs))
-print "Number of discriminatory inputs are " + str(len(global_disc_inputs_list)+len(local_disc_inputs_list))
-
-
+print("")
+print("Total Inputs are " + str(len(tot_inputs)))
+print("Number of discriminatory inputs are " + str(len(global_disc_inputs_list)+len(local_disc_inputs_list)))
