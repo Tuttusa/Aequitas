@@ -15,9 +15,22 @@ import time
 from scipy.optimize import basinhopping
 import config
 from sklearn.externals import joblib
+from utils import evaluate_sklearn_model
 
 random.seed(time.time())
 start_time = time.time()
+
+# Add argument parsing before the main logic
+import argparse
+parser = argparse.ArgumentParser(description='Run fairness testing with specified classifier')
+parser.add_argument('--classifier_name', type=str, required=True, 
+                   help='Name of the classifier file (e.g., Random_Forest_standard_unfair.pkl)')
+args = parser.parse_args()
+classifier_name = args.classifier_name
+
+sensitive_param = config.sensitive_param
+# Run evaluations
+evaluate_sklearn_model(classifier_name, sensitive_param)
 
 init_prob = 0.5
 params = config.params
@@ -43,11 +56,10 @@ local_disc_inputs_list = []
 
 tot_inputs = set()
 
-global_iteration_limit = 2000
+global_iteration_limit = 6000
 local_iteration_limit = 1000
 
 input_bounds = config.input_bounds
-classifier_name = config.classifier_name
 
 model = joblib.load(classifier_name)
 
@@ -194,6 +206,8 @@ def evaluate_local(inp):
 initial_input = [7, 4, 26, 1, 4, 4, 0, 0, 0, 1, 5, 73, 1]
 minimizer = {"method": "L-BFGS-B"}
 
+start_time = time.time()
+
 global_discovery = Global_Discovery()
 local_perturbation = Local_Perturbation()
 
@@ -220,3 +234,4 @@ print "Percentage discriminatory inputs - " + str(float(len(global_disc_inputs_l
 print ""
 print "Total Inputs are " + str(len(tot_inputs))
 print "Number of discriminatory inputs are " + str(len(global_disc_inputs_list)+len(local_disc_inputs_list))
+print "Time running : " + str((time.time()-start_time)) 

@@ -44,7 +44,14 @@ global_iteration_limit = 1000
 local_iteration_limit = 1000
 
 input_bounds = config.input_bounds
-classifier_name = config.classifier_name
+
+import argparse
+parser = argparse.ArgumentParser(description='Run fairness testing with specified classifier')
+parser.add_argument('--classifier_name', type=str, required=True, 
+                   help='Name of the classifier file (e.g., Random_Forest_standard_unfair.pkl)')
+args = parser.parse_args()
+classifier_name = args.classifier_name
+
 
 model = joblib.load(classifier_name)
 
@@ -141,6 +148,8 @@ def evaluate_local(inp):
 initial_input = [7, 4, 26, 1, 4, 4, 0, 0, 0, 1, 5, 73, 1]
 minimizer = {"method": "L-BFGS-B"}
 
+start_time = time.time()
+
 global_discovery = Global_Discovery()
 local_perturbation = Local_Perturbation()
 
@@ -167,3 +176,4 @@ print "Percentage discriminatory inputs - " + str(float(len(global_disc_inputs_l
 print ""
 print "Total Inputs are " + str(len(tot_inputs))
 print "Number of discriminatory inputs are " + str(len(global_disc_inputs_list)+len(local_disc_inputs_list))
+print "Time running : " + str((time.time()-start_time)) 

@@ -7,6 +7,8 @@ from collections import defaultdict
 from copy import deepcopy
 import matplotlib.pyplot as plt # for plotting stuff
 import sys
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+from sklearn.externals import joblib
 
 SEED = 1122334455
 seed(SEED) # set the random seed so that the random permutations can be reproduced again
@@ -648,3 +650,130 @@ def get_line_coordinates(w, x1, x2):
     y1 = (-w[0] - (w[1] * x1)) / w[2]
     y2 = (-w[0] - (w[1] * x2)) / w[2]    
     return y1,y2
+
+
+def evaluate_sklearn_model(classifier_name, sensitive_param):
+    """Evaluate the sklearn model performance"""
+    print "Evaluating Sklearn Model..."
+    
+    # Load the model
+    model = joblib.load(classifier_name)
+    
+    # Load test data
+    X_test = []
+    Y_test = []
+    with open("cleaned_train", "r") as f:
+        next(f)  # Skip header
+        for line in f:
+            line = line.strip().split(',')
+            features = list(map(int, line[:-1]))
+            X_test.append(features)
+            Y_test.append(1 if int(line[-1]) == 1 else -1)
+    
+    X_test = np.array(X_test)
+    Y_test = np.array(Y_test)
+    
+    # Make predictions
+    Y_pred = model.predict(X_test)
+    
+    # Calculate metrics
+    accuracy = accuracy_score(Y_test, Y_pred)
+    precision = precision_score(Y_test, Y_pred, pos_label=1)
+    recall = recall_score(Y_test, Y_pred, pos_label=1)
+    f1 = f1_score(Y_test, Y_pred, pos_label=1)
+    conf_matrix = confusion_matrix(Y_test, Y_pred)
+    
+    print "\nSklearn Model Performance:"
+    print "Accuracy: " + str(accuracy)
+    print "Precision: " + str(precision)
+    print "Recall: " + str(recall)
+    print "F1 Score: " + str(f1)
+    print "\nConfusion Matrix:"
+    print conf_matrix
+    
+    # Evaluate fairness metrics
+    sensitive_feature = X_test[:, sensitive_param - 1]  # Get the sensitive attribute (sex)
+    predictions_by_group = {
+        0: Y_pred[sensitive_feature == 0],
+        1: Y_pred[sensitive_feature == 1]
+    }
+    actual_by_group = {
+        0: Y_test[sensitive_feature == 0],
+        1: Y_test[sensitive_feature == 1]
+    }
+    
+    print "\nFairness Metrics:"
+    for group in [0, 1]:
+        group_acc = accuracy_score(actual_by_group[group], predictions_by_group[group])
+        group_size = len(predictions_by_group[group])
+        print "Group" + str(group)
+        print "  Size:" + str(group_size)
+        print "  Accuracy:" + str(group_acc)
+
+def evaluate_direct_model(sensitive_param, ut):
+    """Evaluate the direct model performance"""
+    print "\nEvaluating Direct Model..."
+    
+    # Load and prepare data
+    X = []
+    Y = []
+    sens = []
+    with open("cleaned_train", "r") as f:
+        next(f)  # Skip header
+        for line in f:
+            line = line.strip().split(',')
+            features = list(map(int, line[:-1]))
+            sens.append(features[sensitive_param - 1])
+            X.append(features)
+            Y.append(1 if int(line[-1]) == 1 else -1)
+    
+    X = np.array(X, dtype=float)
+    Y = np.array(Y, dtype=float)
+    sensitive = {'sex': np.array(sens, dtype=float)}
+    
+    # Train model with the same parameters as in the original script
+    loss_function = lf._logistic_loss
+    sep_constraint = 0
+    sensitive_attrs = ['sex']
+    sensitive_attrs_to_cov_thresh = {'sex': 0}
+    gamma = None
+    
+    model = ut.train_model(X, Y, sensitive, loss_function, 1, 0, sep_constraint, 
+                          sensitive_attrs, sensitive_attrs_to_cov_thresh, gamma)
+    
+    # Make predictions
+    Y_pred = np.sign(np.dot(X, model))
+    
+    # Calculate metrics
+    accuracy = accuracy_score(Y, Y_pred)
+    precision = precision_score(Y, Y_pred, pos_label=1)
+    recall = recall_score(Y, Y_pred, pos_label=1)
+    f1 = f1_score(Y, Y_pred, pos_label=1)
+    conf_matrix = confusion_matrix(Y, Y_pred)
+    
+    print "\nDirect Model Performance:"
+    print "Accuracy: " + str(accuracy)
+    print "Precision: " + str(precision)
+    print "Recall: " + str(recall)
+    print "F1 Score: " + str(f1)
+    print "\nConfusion Matrix:"
+    print conf_matrix
+    
+    # Evaluate fairness metrics
+    sensitive_feature = X[:, sensitive_param - 1]  # Get the sensitive attribute (sex)
+    predictions_by_group = {
+        0: Y_pred[sensitive_feature == 0],
+        1: Y_pred[sensitive_feature == 1]
+    }
+    actual_by_group = {
+        0: Y[sensitive_feature == 0],
+        1: Y[sensitive_feature == 1]
+    }
+    
+    print "\nFairness Metrics:"
+    for group in [0, 1]:
+        group_acc = accuracy_score(actual_by_group[group], predictions_by_group[group])
+        group_size = len(predictions_by_group[group])
+        print "Group " + str(group)
+        print "  Size: " + str(group_size)
+        print "  Accuracy: " + str(group_acc)

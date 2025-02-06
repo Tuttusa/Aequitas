@@ -76,9 +76,7 @@ sensitive_attrs = [name]
 sensitive_attrs_to_cov_thresh = {name: cov}
 
 gamma = None
-
-model = ut.train_model(X, Y, sensitive, loss_function, 1, 0, sep_constraint, sensitive_attrs, sensitive_attrs_to_cov_thresh,
-                   gamma)
+model = ut.train_model(X, Y, sensitive, loss_function, 1, 0, sep_constraint, sensitive_attrs, sensitive_attrs_to_cov_thresh, gamma)
 
 
 class Local_Perturbation(object):
@@ -157,6 +155,8 @@ def evaluate_local(inp):
 initial_input = [7, 4, 26, 1, 4, 4, 0, 0, 0, 1, 5, 73, 1]
 minimizer = {"method": "L-BFGS-B"}
 
+start_time = time.time()
+
 global_discovery = Global_Discovery()
 local_perturbation = Local_Perturbation()
 
@@ -179,3 +179,4 @@ print "Percentage discriminatory inputs - " + str(float(len(global_disc_inputs_l
 print ""
 print "Total Inputs are " + str(len(tot_inputs))
 print "Number of discriminatory inputs are " + str(len(global_disc_inputs_list)+len(local_disc_inputs_list))
+print "Time running : " + str((time.time()-start_time)) 
